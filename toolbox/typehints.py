@@ -1,5 +1,5 @@
 from collections.abc import Callable
-from typing import Any, Concatenate, Protocol, Self
+from typing import Any, Concatenate, Iterable, Protocol, Self
 
 import nptyping as npt
 from pint import Quantity, UnitRegistry
@@ -12,6 +12,7 @@ __all__ = [
     "Concatenate",
     "Decorator",
     "DecoratorFactory",
+    "Iterable",
     "npt",
     "Quantity",
     "ureg",
