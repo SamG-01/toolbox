@@ -1,10 +1,10 @@
 from inspect import _empty, signature
 
-from ..typehints import Any, Callable, FDescriptor, Self
+from ..typehints import Any, Callable, FDescriptor, Iterable, Self
 from .general import parametrized
 
 
-def check_type(arg: Any, expected_type: type, label: Any) -> None:
+def check_type(arg: Any, expected_type: type | Iterable[type], label: Any) -> None:
     """Checks the type of arg.
 
     Args:
@@ -22,11 +22,18 @@ def check_type(arg: Any, expected_type: type, label: Any) -> None:
         return
 
     # otherwise, check the two types
-    actual_type = type(arg)
-    if actual_type is not expected_type:
-        raise TypeError(
-            f"Argument {label} has type {actual_type} and not {expected_type}"
-        )
+    actual = type(arg)
+    try:
+        expected_types = tuple(expected_type)
+        error = f"Type {actual} of argument {label} is not in {expected_types}"
+    except TypeError:
+        expected_types = (expected_type,)
+        error = f"Argument {label} has type {actual} and not {expected_type}"
+
+    for expected in expected_types:
+        if actual is expected:
+            return
+    raise TypeError(error)
 
 
 @parametrized
