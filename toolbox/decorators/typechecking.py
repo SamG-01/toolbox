@@ -125,6 +125,9 @@ class multipledispatch:
         self._instance = _instance
         self._owner = _owner
 
+    def __len__(self) -> int:
+        return len(self.registry)
+
     def register(self, *implementations: Callable | FDescriptor) -> Self:
         """Registers one or more function implementations.
 
@@ -137,7 +140,7 @@ class multipledispatch:
         """
 
         for implementation in implementations:
-            self.registry.insert(0, implementation)
+            self.registry.append(implementation)
         return self
 
     def dispatcher(self, *fargs: Any, **fkwargs: Any) -> tuple[Callable, list[str]]:
@@ -153,7 +156,7 @@ class multipledispatch:
         failures = ["No implementation found for the supplied arguments"]
 
         # checks the registry for implementations that work
-        for n, implementation in enumerate(self.registry):
+        for n, implementation in enumerate(self.registry[::-1]):
             # if self._instance and self._owner are specified,
             # bind the implementation to them using
             # its __get__ method
@@ -175,7 +178,7 @@ class multipledispatch:
                         tcallarg = fsig.parameters[fparam].annotation
                         check_type(fcallarg, tcallarg, fparam)
             except TypeError as e:
-                failures.append(f"Implementation {n}: {e}")
+                failures.append(f"Implementation {len(self) - n}: {e}")
             else:
                 return func, failures
 
