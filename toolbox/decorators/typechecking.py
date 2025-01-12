@@ -158,10 +158,6 @@ class multipledispatch:
             # bind the implementation to them using
             # its __get__ method
             if self._instance is None and self._owner is None:
-                if not callable(implementation):
-                    raise TypeError(
-                        f"Implementation {n}: {implementation} is not callable"
-                    )
                 func: Callable = implementation
             else:
                 func: Callable = implementation.__get__(self._instance, self._owner)  # pylint: disable=C2801
