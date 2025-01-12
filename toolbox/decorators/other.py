@@ -1,7 +1,7 @@
 from time import sleep
 
 from ..typehints import Any, Callable
-from .main import parametrized
+from .general import parametrized
 
 
 @parametrized

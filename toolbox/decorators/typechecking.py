@@ -1,7 +1,7 @@
 from inspect import _empty, signature
 
 from ..typehints import Any, Callable, FDescriptor, Self
-from .main import parametrized
+from .general import parametrized
 
 
 def check_type(arg: Any, expected_type: type, label: Any) -> None:
