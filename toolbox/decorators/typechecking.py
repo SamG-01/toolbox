@@ -38,7 +38,7 @@ def check_type(arg: Any, expected_type: type | Iterable[type], label: Any) -> No
 
 @parametrized
 def typeguard[**P, T](
-    func: Callable[P, T], *targs: type, **tkwargs: type
+    func: Callable[P, T], /, *targs: type, **tkwargs: type
 ) -> Callable[P, T]:
     """A decorator factory that checks the arguments of a function
     call against the supplied types before running it and raises a
@@ -62,7 +62,7 @@ def typeguard[**P, T](
     # identifies which parameters are type guarded
     tcallargs = fsig.bind_partial(*targs, **tkwargs)
 
-    def wrapper(*fargs: Any, **fkwargs: Any) -> T:
+    def wrapper(*fargs: P.args, **fkwargs: P.kwargs) -> T:
         # binds fargs and fkwargs to the signature
         fcallargs = fsig.bind_partial(*fargs, **fkwargs)
 

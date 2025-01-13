@@ -1,6 +1,6 @@
 from functools import wraps
 
-from ..typehints import Any, Callable, Concatenate, Decorator, DecoratorFactory
+from ..typehints import Callable, Concatenate, Decorator, DecoratorFactory
 
 __all__ = ["parametrized"]
 
@@ -25,7 +25,7 @@ def parametrized[**P, T](
         mentioned parameters as arguments.
     """
 
-    def decorator_factory(*dargs: Any, **dkwargs: Any) -> Decorator[P, T]:
+    def decorator_factory(*dargs: P.args, **dkwargs: P.kwargs) -> Decorator[P, T]:
         # we can't use functools.wraps here, as you can't
         # specify *dargs to start at index 1
 

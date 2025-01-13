@@ -1,12 +1,13 @@
 from time import sleep
 
-from ..typehints import Any, Callable
+from ..typehints import Callable
 from .general import parametrized
 
 
 @parametrized
 def retry[**P, T](
     func: Callable[P, T],
+    /,
     max_retries: int = 3,
     exceptions: tuple[type[Exception]] = (Exception,),
     delay: float = 0,
@@ -26,7 +27,7 @@ def retry[**P, T](
         RuntimeError: If all attempts fail, this is raised.
     """
 
-    def wrapper(*args: Any, **kwargs: Any) -> T:
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
         for attempt in range(max_retries + 1):
             try:
                 return func(*args, **kwargs)
