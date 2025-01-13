@@ -16,22 +16,22 @@ def check_type(arg: Any, expected_type: type | Iterable[type], label: Any) -> No
         TypeError: If type(arg) is not expected_type, an exception is raised.
     """
 
-    # if expected_type is Any or an empty annotation,
-    # then the check automatically succeeds
-    if expected_type in (Any, _empty):
-        return
+    
 
-    # otherwise, check the two types
     actual = type(arg)
-    try:
-        expected_types = tuple(expected_type)
-        error = f"Type {actual} of argument {label} is not in {expected_types}"
-    except TypeError:
+    if isinstance(expected_type, type):
+        # normal case where expected_type is a type
         expected_types = (expected_type,)
         error = f"Argument {label} has type {actual} and not {expected_type}"
+    else:
+        # if expected_type is a tuple or UnionType, then check its elements
+        expected_types = tuple(getattr(expected_type, "__args__", expected_type))
+        error = f"Type {actual} of argument {label} is not in {expected_types}"
 
     for expected in expected_types:
-        if actual is expected:
+        # if expected_type is Any or an empty annotation,
+        # then the check automatically succeeds
+        if expected in (actual, Any, _empty):
             return
     raise TypeError(error)
 
