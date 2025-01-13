@@ -1,22 +1,30 @@
 from inspect import _empty, signature
+from types import UnionType
 
 from ..typehints import Any, Callable, FDescriptor, Iterable, Self
 from .general import parametrized
 
+__all__ = ["check_type", "check_call", "typeguard", "multipledispatch"]
 
-def check_type(arg: Any, expected_type: type | Iterable[type], label: Any) -> None:
+types = type | Iterable[type] | UnionType
+
+
+class TypeCheckError(TypeError):
+    pass
+
+
+def check_type(arg: Any, expected_type: types, label: str | Any) -> None:
     """Checks the type of arg.
 
     Args:
         arg (Any): The variable to check the type of.
-        expected_type (type): The expected type to check against.
-        label (Any): What to refer to arg as in the TypeError.
+        expected_type (type | Iterable[type] | UnionType): The
+        expected type(s) to check against.
+        label (str | Any): What to refer to arg as in the TypeError.
 
     Raises:
-        TypeError: If type(arg) is not expected_type, an exception is raised.
+        TypeCheckError: If type(arg) is not (in) expected_type.
     """
-
-    
 
     actual = type(arg)
     if isinstance(expected_type, type):
@@ -33,20 +41,87 @@ def check_type(arg: Any, expected_type: type | Iterable[type], label: Any) -> No
         # then the check automatically succeeds
         if expected in (actual, Any, _empty):
             return
-    raise TypeError(error)
+    raise TypeCheckError(error)
+
+
+def check_call[**P, T](
+    func: Callable[P, T],
+    /,
+    fargs: tuple[Any],
+    fkwargs: dict[str, Any],
+    targs: tuple[types] = None,
+    tkwargs: dict[str, types] = None,
+    check_types: bool = True,
+    use_annotations: bool = True,
+) -> None:
+    """Checks that the arguments passed into the function are
+    compatible with its signature and the supplied types, if any.
+
+    Args:
+        func (Callable): The function to check.
+        fargs (tuple[Any]): The positional arguments to check against func.
+        fkwargs (dict[str, Any]): The keyword arguments to check against func.
+        targs (tuple[types], optional): The expected types for the positional
+        arguments.
+        tkwargs (dict[str, types], optional): The expected types for the
+        keyword arguments.
+        check_types (bool, optional): Whether to check the types of
+        fargs and fkwargs against those of targs and tkwargs. Defaults to True.
+        use_annotations (bool, optional): Whether to fall back on func's
+        type annotations for gaps in targs and tkwargs. Defaults to True.
+
+    Raises:
+        TypeError: If func(*fargs, **fkwargs) is not a valid
+        signature binding.
+        TypeCheckError: If any of the call arguments don't correspond
+        to the type arguments.
+    """
+
+    targs = () if targs is None else targs
+    tkwargs = {} if tkwargs is None else tkwargs
+
+    fsig = signature(func)
+    fcallargs = fsig.bind_partial(*fargs, **fkwargs)
+
+    if not check_types:
+        return
+
+    tcallargs = fsig.bind_partial(*targs, **tkwargs)
+
+    failures = []
+    for fparamname, fcallarg in fcallargs.arguments.items():
+        fparam = fsig.parameters[fparamname]
+        tcallarg = tcallargs.arguments.get(
+            fparamname, fparam.annotation if use_annotations else _empty
+        )
+
+        # if this is a regular param, just check it normally
+        try:
+            if int(fparam.kind) == 1:
+                check_type(fcallarg, tcallarg, fparamname)
+                continue
+
+            # otherwise, treat it as an *args or **kwargs parameter
+            if isinstance(fcallarg, tuple):
+                fcallarg = dict(enumerate(fcallarg))
+            for k, v in fcallarg.items():
+                check_type(v, tcallarg, f"{fparamname}[{k}]")
+        except TypeCheckError as e:
+            failures.append(str(e))
+
+    if failures:
+        failures.insert(0, "Function arguments did not match expected types")
+        raise TypeCheckError("\n".join(failures))
 
 
 @parametrized
 def typeguard[**P, T](
-    func: Callable[P, T], /, *targs: type, **tkwargs: type
+    func: Callable[P, T], /, *targs: type | tuple[type], **tkwargs: type
 ) -> Callable[P, T]:
     """A decorator factory that checks the arguments of a function
     call against the supplied types before running it and raises a
     TypeError if they differ. If a type isn't provided for a parameter,
     this function will use its type annotations as a fallback.
-
-    against
-    the supplied types before running it and raises a TypeError if they differ.
 
     https://stackoverflow.com/a/26151604
 
@@ -56,40 +131,9 @@ def typeguard[**P, T](
         tkwargs (type): The types for the keyword arguments.
     """
 
-    # gets the function signature
-    fsig = signature(func)
-
-    # identifies which parameters are type guarded
-    tcallargs = fsig.bind_partial(*targs, **tkwargs)
-
     def wrapper(*fargs: P.args, **fkwargs: P.kwargs) -> T:
-        # binds fargs and fkwargs to the signature
-        fcallargs = fsig.bind_partial(*fargs, **fkwargs)
-
-        # loops through the typeguarded parameters
-        # and confirms their types
-        failures = []
-        for fparamname, fcallarg in fcallargs.arguments.items():
-            fparam = fsig.parameters[fparamname]
-            tcallarg = tcallargs.arguments.get(fparamname, fparam.annotation)
-
-            # if this is a regular param, just check it normally
-            try:
-                if int(fparam.kind) == 1:
-                    check_type(fcallarg, tcallarg, fparamname)
-                    continue
-
-                # otherwise, treat it as an *args or **kwargs parameter
-                if isinstance(fcallarg, tuple):
-                    fcallarg = dict(enumerate(fcallarg))
-                for k, v in fcallarg.items():
-                    check_type(v, tcallarg, f"{fparamname}[{k}]")
-            except TypeError as e:
-                failures.append(str(e))
-
-        if failures:
-            failures.insert(0, "Function arguments did not match expected types")
-            raise TypeError("\n".join(failures))
+        # checks the call beforehand
+        check_call(func, fargs, fkwargs, targs, tkwargs, True, True)
 
         # otherwise, run the function as normal
         return func(*fargs, **fkwargs)
@@ -184,17 +228,8 @@ class multipledispatch:
 
             # checks if the implementation works for these arguments
             try:
-                # validates the arguments against the implementation signature
-                fsig = signature(func)
-                fcallargs = fsig.bind(*fargs, **fkwargs)
-
-                # if typechecking is enabled, check the argument
-                # types against the implementation's type annotations
-                if self.typecheck:
-                    for fparam, fcallarg in fcallargs.arguments.items():
-                        tcallarg = fsig.parameters[fparam].annotation
-                        check_type(fcallarg, tcallarg, fparam)
-            except TypeError as e:
+                check_call(func, fargs, fkwargs, check_types=self.typecheck)
+            except TypeCheckError as e:
                 failures.append(f"Implementation {len(self) - n}: {e}")
             else:
                 return func, failures
