@@ -68,20 +68,28 @@ def typeguard[**P, T](
 
         # loops through the typeguarded parameters
         # and confirms their types
+        failures = []
         for fparamname, fcallarg in fcallargs.arguments.items():
             fparam = fsig.parameters[fparamname]
             tcallarg = tcallargs.arguments.get(fparamname, fparam.annotation)
 
             # if this is a regular param, just check it normally
-            if int(fparam.kind) == 1:
-                check_type(fcallarg, tcallarg, fparamname)
-                continue
+            try:
+                if int(fparam.kind) == 1:
+                    check_type(fcallarg, tcallarg, fparamname)
+                    continue
 
-            # otherwise, treat it as an *args or **kwargs parameter
-            if isinstance(fcallarg, tuple):
-                fcallarg = dict(enumerate(fcallarg))
-            for k, v in fcallarg.items():
-                check_type(v, tcallarg, f"{fparamname}[{k}]")
+                # otherwise, treat it as an *args or **kwargs parameter
+                if isinstance(fcallarg, tuple):
+                    fcallarg = dict(enumerate(fcallarg))
+                for k, v in fcallarg.items():
+                    check_type(v, tcallarg, f"{fparamname}[{k}]")
+            except TypeError as e:
+                failures.append(str(e))
+
+        if failures:
+            failures.insert(0, "Function arguments did not match expected types")
+            raise TypeError("\n".join(failures))
 
         # otherwise, run the function as normal
         return func(*fargs, **fkwargs)
