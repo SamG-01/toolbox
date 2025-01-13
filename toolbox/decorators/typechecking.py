@@ -246,7 +246,8 @@ class multipledispatch:
 
         Returns:
             Self: If the registry is empty, decorate the new base case.
-            Any: The output of the implementation.
+            Any: If the registry isn't empty, find the appropriate
+            implementation and call it.
         """
 
         # if there is no base case, decorate it now
