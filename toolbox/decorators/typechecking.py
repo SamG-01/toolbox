@@ -262,8 +262,8 @@ class multipledispatch:
         return implementation(*fargs, **fkwargs)
 
     def __get__(self, instance: object, owner: type | None = None) -> Self:
-        """Returns a copy of the multipledispatch object
-        bound to its instance/owner, as appropriate.
+        """Returns Self or a copy of Self bound to the
+        given instance/owner, as appropriate.
 
         Args:
             instance (object): The instance to bind to.
@@ -271,8 +271,11 @@ class multipledispatch:
             or the class to bind to. Defaults to None.
 
         Returns:
-            Self: A copy of self with the appropriate bindings.
+            Self: Self, or a copy with the appropriate bindings
+            if Self's bindings are different.
         """
 
+        if instance is self._instance and owner is self._owner:
+            return self
         copy = self.__class__(None, self.typecheck, instance, owner)
         return copy.register(*self.registry)
