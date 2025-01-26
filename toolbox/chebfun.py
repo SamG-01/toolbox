@@ -112,7 +112,7 @@ def quantumstates(
     Args:
         V (types.chebfun): The values of the potential on the grid.
         x (types.chebfun): The Chebyshev grid the particle is confined to.
-        h (float, optional): The value of -h/sqrt(2m). Defaults to 0.1.
+        h (float, optional): The value of -hbar/sqrt(2m). Defaults to 0.1.
         N (int, optional): The number of eigensolutions to find. Defaults to 10.
 
     Returns:
