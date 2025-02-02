@@ -1,8 +1,30 @@
+from contextlib import contextmanager
 from functools import partial
 
 import numpy as np
+from numpy.typing import NDArray
 
 from .typehints import Callable
+
+
+@contextmanager
+def rel_coords(coords: NDArray[np.complex128], origin: complex, angle: float = 0):
+    """Context manager for performing operations on complex vectors relative to some origin and axes.
+
+    Args:
+        coords (NDArray[np.complex128]): The coordinates to temporarily transform.
+        origin (complex): The point to treat as the origin.
+        angle (float, optional): The angle to consider as the positive real axis. Defaults to 0.
+    """
+
+    rotation = np.exp(1j * angle)
+    try:
+        coords -= origin
+        coords /= rotation
+        yield
+    finally:
+        coords *= rotation
+        coords += origin
 
 
 def nonlinearinterp(
